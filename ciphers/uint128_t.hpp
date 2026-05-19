@@ -7,18 +7,20 @@
  * @author [Ashish Daulatabad](https://github.com/AshishYUO)
  */
 
-#include <algorithm>  /// for `std::reverse` and other operations
+#include <algorithm>
 #include <cstdint>
-#include <ostream>    /// for `std::cout` overload
-#include <string>     /// for `std::string`
-#include <utility>    /// for `std::pair` library
+#include <ostream>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
 #ifdef _MSC_VER
-#include <intrin.h>  /// for _BitScanForward64 and __BitScanReverse64 operation
+#include <intrin.h>
 #endif
 
 #ifndef CIPHERS_UINT128_T_HPP_
 #define CIPHERS_UINT128_T_HPP_
+
 class uint128_t;
 
 template <>
@@ -53,12 +55,13 @@ std::string add(const std::string &first, const std::string &second) {
     std::reverse(third.begin(), third.end());
     return third;
 }
+
 /**
  * @class uint128_t
  * @brief class for 128-bit unsigned integer
  */
 class uint128_t {
-    uint64_t f{}, s{};  /// First and second half of 128 bit number
+    uint64_t f{}, s{};
 
     /**
      * @brief Get integer from given string.
@@ -67,23 +70,23 @@ class uint128_t {
      * number)
      * @returns void
      */
-    void __get_integer_from_string(const std::string &str) {
+    void get_integer_from_string(const std::string &str) {
         this->f = this->s = 0;
-        if (str.size() > 1 && str[1] == 'x') {  // if hexadecimal
+        if (str.size() > 1 && str[1] == 'x') {
             for (auto i = 2; i < str.size(); ++i) {
-                *this *= 16LL;
+                *this *= 16ULL;
                 if (str[i] >= '0' && str[i] <= '9') {
-                    *this += (str[i] - '0');
+                    *this += static_cast<uint64_t>(str[i] - '0');
                 } else if (str[i] >= 'A' && str[i] <= 'F') {
-                    *this += (str[i] - 'A' + 10);
+                    *this += static_cast<uint64_t>(str[i] - 'A' + 10);
                 } else if (str[i] >= 'a' && str[i] <= 'f') {
-                    *this += (str[i] - 'a' + 10);
+                    *this += static_cast<uint64_t>(str[i] - 'a' + 10);
                 }
             }
-        } else {  // if decimal
+        } else {
             for (auto &x : str) {
-                *this *= 10LL;
-                *this += (x - '0');
+                *this *= 10ULL;
+                *this += static_cast<uint64_t>(x - '0');
             }
         }
     }
@@ -98,14 +101,14 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    explicit uint128_t(T low) : s(low) {}
+    explicit uint128_t(T low) : s(static_cast<uint64_t>(low)) {}
 
     /**
      * @brief Parameterized constructor
      * @param str Integer string (hexadecimal starting with 0x.. or decimal)
      */
     explicit uint128_t(const std::string &str) {
-        __get_integer_from_string(str);
+        get_integer_from_string(str);
     }
 
     /**
@@ -137,44 +140,42 @@ class uint128_t {
      * @details Calculates leading zeros in 128-bit integer
      * @returns Integer denoting leading zeroes
      */
-    inline uint32_t _lez() {
+    inline uint32_t lez() const noexcept {
 #ifndef _MSC_VER
-        if (f) {
+        if (f != 0) {
             return __builtin_clzll(f);
         }
         return 64 + __builtin_clzll(s);
 #else
         unsigned long r = 0;
-        _BitScanForward64(&r, f);
-        if (r == 64) {
-            unsigned long l = 0;
-            _BitScanForward64(&l, s);
-            return 64 + l;
+        if (_BitScanReverse64(&r, f)) {
+            return 63 - r;
         }
-        return r;
+        unsigned long l = 0;
+        _BitScanReverse64(&l, s);
+        return 64 + (63 - l);
 #endif
     }
 
     /**
      * @brief Trailing zeroes in binary
-     * @details Calculates leading zeros in 128-bit integer
+     * @details Calculates trailing zeros in 128-bit integer
      * @returns Integer denoting Trailing zeroes
      */
-    inline uint32_t _trz() {
+    inline uint32_t trz() const noexcept {
 #ifndef _MSC_VER
-        if (f) {
+        if (f != 0) {
             return __builtin_ctzll(f);
         }
         return 64 + __builtin_ctzll(s);
 #else
         unsigned long r = 0;
-        _BitScanReverse64(&r, s);
-        if (r == 64) {
-            unsigned long l = 0;
-            _BitScanReverse64(&l, f);
-            return 64 + l;
+        if (_BitScanForward64(&r, s)) {
+            return r;
         }
-        return r;
+        unsigned long l = 0;
+        _BitScanForward64(&l, f);
+        return 64 + l;
 #endif
     }
 
@@ -182,7 +183,7 @@ class uint128_t {
      * @brief casting operator to boolean value
      * @returns true if value of this is non-zero, else false
      */
-    inline explicit operator bool() const { return (f || s); }
+    inline explicit operator bool() const noexcept { return (f || s); }
 
     /**
      * @brief casting operator to any integer valu
@@ -191,7 +192,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline explicit operator T() const {
+    inline explicit operator T() const noexcept {
         return static_cast<T>(s);
     }
 
@@ -199,13 +200,13 @@ class uint128_t {
      * @brief returns lower 64-bit integer part
      * @returns returns lower 64-bit integer part
      */
-    inline uint64_t lower() const { return s; }
+    inline uint64_t lower() const noexcept { return s; }
 
     /**
      * @brief returns upper 64-bit integer part
      * @returns returns upper 64-bit integer part
      */
-    inline uint64_t upper() const { return f; }
+    inline uint64_t upper() const noexcept { return f; }
 
     /**
      * @brief operator = for other types
@@ -215,8 +216,9 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t &operator=(const T &p) {
-        this->s = p;
+    inline uint128_t &operator=(const T &p) noexcept {
+        this->s = static_cast<uint64_t>(p);
+        this->f = 0;
         return *this;
     }
 
@@ -226,7 +228,7 @@ class uint128_t {
      * @returns this pointer with it's value equal to `p`
      */
     inline uint128_t &operator=(const std::string &p) {
-        this->__get_integer_from_string(p);
+        this->get_integer_from_string(p);
         return *this;
     }
 
@@ -235,12 +237,12 @@ class uint128_t {
      * @param p an 128-bit integer to assign it's value
      * @returns this pointer with it's value equal to `p`
      */
-    inline uint128_t &operator=(const uint128_t &p) = default;
+    inline uint128_t &operator=(const uint128_t &p) noexcept = default;
 
     /**
      * @brief Move assignment operator
      */
-    inline uint128_t &operator=(uint128_t &&p) = default;
+    inline uint128_t &operator=(uint128_t &&p) noexcept = default;
 
     /**
      * @brief operator + for uint128_t and other integer types.
@@ -250,8 +252,8 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t operator+(const T p) {
-        return uint128_t(f + (p + s < s), p + s);
+    inline uint128_t operator+(const T p) const noexcept {
+        return uint128_t(f + (static_cast<uint64_t>(p) + s < s), static_cast<uint64_t>(p) + s);
     }
 
     /**
@@ -259,7 +261,7 @@ class uint128_t {
      * @param p 128-bit unsigned integer
      * @returns addition of this and p, returning uint128_t integer
      */
-    inline uint128_t operator+(const uint128_t &p) {
+    inline uint128_t operator+(const uint128_t &p) const noexcept {
         return uint128_t(f + (p.s + s < s) + p.f, p.s + s);
     }
 
@@ -271,10 +273,10 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t &operator+=(const T p) {
-        bool app = p + s < s;
+    inline uint128_t &operator+=(const T p) noexcept {
+        bool app = static_cast<uint64_t>(p) + s < s;
         this->f += app;
-        this->s += p;
+        this->s += static_cast<uint64_t>(p);
         return *this;
     }
 
@@ -283,7 +285,7 @@ class uint128_t {
      * @param p 128-bit unsigned integer
      * @returns addition of this and p, returning this
      */
-    uint128_t &operator+=(const uint128_t &p) {
+    uint128_t &operator+=(const uint128_t &p) noexcept {
         bool app = p.s + s < s;
         f = f + app + p.f;
         s = p.s + s;
@@ -294,8 +296,8 @@ class uint128_t {
      * @brief pre-increment operator
      * @returns incremented value of this.
      */
-    inline uint128_t &operator++() {
-        *this += 1;
+    inline uint128_t &operator++() noexcept {
+        *this += 1ULL;
         return *this;
     }
 
@@ -303,9 +305,10 @@ class uint128_t {
      * @brief post-increment operator
      * @returns incremented value of this.
      */
-    inline uint128_t operator++(int) {
+    inline uint128_t operator++(int) noexcept {
+        uint128_t temp = *this;
         ++*this;
-        return *this;
+        return temp;
     }
 
     /**
@@ -316,9 +319,9 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t operator-(const T &p) {
-        bool app = p > s;
-        return uint128_t(f - app, s - p);
+    inline uint128_t operator-(const T &p) const noexcept {
+        bool app = static_cast<uint64_t>(p) > s;
+        return uint128_t(f - app, s - static_cast<uint64_t>(p));
     }
 
     /**
@@ -326,7 +329,7 @@ class uint128_t {
      * @param p a type of integer variable
      * @returns subtraction of this and p, returning uint128_t integer
      */
-    inline uint128_t operator-(const uint128_t &p) {
+    inline uint128_t operator-(const uint128_t &p) const noexcept {
         bool app = p.s > s;
         return uint128_t(f - p.f - app, s - p.s);
     }
@@ -335,14 +338,16 @@ class uint128_t {
      * @brief operator - using twos complement
      * @returns 2's complement of this.
      */
-    inline uint128_t operator-() { return ~*this + uint128_t(1); }
+    inline uint128_t operator-() const noexcept {
+        return ~*this + uint128_t(1ULL);
+    }
 
     /**
      * @brief operator -- (pre-decrement)
      * @returns decremented value of this
      */
-    inline uint128_t &operator--() {
-        *this -= 1;
+    inline uint128_t &operator--() noexcept {
+        *this -= 1ULL;
         return *this;
     }
 
@@ -350,9 +355,10 @@ class uint128_t {
      * @brief operator -- (post-decrement)
      * @returns decremented value of this
      */
-    inline uint128_t operator--(int) {
+    inline uint128_t operator--(int) noexcept {
+        uint128_t temp = *this;
         --*this;
-        return *this;
+        return temp;
     }
 
     /**
@@ -363,10 +369,10 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    uint128_t &operator-=(const T &p) {
-        bool app = p > s;
+    uint128_t &operator-=(const T &p) noexcept {
+        bool app = static_cast<uint64_t>(p) > s;
         f -= app;
-        s -= p;
+        s -= static_cast<uint64_t>(p);
         return *this;
     }
 
@@ -375,7 +381,7 @@ class uint128_t {
      * @param p 128-bit unsigned integer
      * @returns subtraction of this and p, returning this
      */
-    uint128_t &operator-=(const uint128_t &p) {
+    uint128_t &operator-=(const uint128_t &p) noexcept {
         bool app = p.s > s;
         f = f - p.f - app;
         s = s - p.s;
@@ -390,7 +396,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t operator*(const T p) {
+    inline uint128_t operator*(const T p) const noexcept {
         return *this * uint128_t(p);
     }
 
@@ -399,16 +405,21 @@ class uint128_t {
      * @param p 128-bit unsigned integer
      * @returns multiplication of this and p, returning uint128_t integer
      */
-    uint128_t operator*(const uint128_t &p) {
-        uint64_t f_first = s >> 32, f_second = s & 0xFFFFFFFF,
-                 s_first = p.s >> 32, s_second = p.s & 0xFFFFFFFF;
-        uint64_t fi = f_first * s_first, se = f_first * s_second,
-                 th = s_first * f_second, fo = s_second * f_second;
-        uint64_t tmp = ((se & 0xFFFFFFFF) << 32), tmp2 = (th & 0xFFFFFFFF)
-                                                         << 32;
-        int cc = (tmp + tmp2 < tmp);
+    uint128_t operator*(const uint128_t &p) const noexcept {
+        uint64_t f_first = s >> 32, f_second = s & 0xFFFFFFFF;
+        uint64_t s_first = p.s >> 32, s_second = p.s & 0xFFFFFFFF;
+        
+        uint64_t fi = f_first * s_first;
+        uint64_t se = f_first * s_second;
+        uint64_t th = s_first * f_second;
+        uint64_t fo = s_second * f_second;
+        
+        uint64_t tmp = (se & 0xFFFFFFFFULL) << 32ULL;
+        uint64_t tmp2 = (th & 0xFFFFFFFFULL) << 32ULL;
+        int cc = (tmp + tmp2 < tmp) ? 1 : 0;
         tmp += tmp2;
-        cc += (tmp + fo < tmp);
+        cc += (tmp + fo < tmp) ? 1 : 0;
+        
         uint64_t carry = fi + (se >> 32) + (th >> 32);
         return uint128_t(this->f * p.s + this->s * p.f + carry + cc, tmp + fo);
     }
@@ -421,7 +432,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t &operator*=(const T p) {
+    inline uint128_t &operator*=(const T p) noexcept {
         *this *= uint128_t(p);
         return *this;
     }
@@ -431,15 +442,21 @@ class uint128_t {
      * @param p 128-bit unsigned integer
      * @returns multiplication of this and p, returning this
      */
-    uint128_t &operator*=(const uint128_t &p) {
-        uint64_t f_first = s >> 32, f_second = s & 0xFFFFFFFF,
-                 s_first = p.s >> 32, s_second = p.s & 0xFFFFFFFF;
-        uint64_t fi = f_first * s_first, se = f_first * s_second,
-                 th = s_first * f_second, fo = s_second * f_second;
-        uint64_t tmp = (se << 32), tmp2 = (th << 32);
-        int cc = (tmp + tmp2 < tmp);
+    uint128_t &operator*=(const uint128_t &p) noexcept {
+        uint64_t f_first = s >> 32, f_second = s & 0xFFFFFFFF;
+        uint64_t s_first = p.s >> 32, s_second = p.s & 0xFFFFFFFF;
+        
+        uint64_t fi = f_first * s_first;
+        uint64_t se = f_first * s_second;
+        uint64_t th = s_first * f_second;
+        uint64_t fo = s_second * f_second;
+        
+        uint64_t tmp = se << 32ULL;
+        uint64_t tmp2 = th << 32ULL;
+        int cc = (tmp + tmp2 < tmp) ? 1 : 0;
         tmp += tmp2;
-        cc += (tmp + fo < tmp);
+        cc += (tmp + fo < tmp) ? 1 : 0;
+        
         uint64_t carry = fi + (se >> 32) + (th >> 32);
         f = this->f * p.s + this->s * p.f + carry + cc;
         s = tmp + fo;
@@ -452,20 +469,22 @@ class uint128_t {
      * @param p 128-bit unsigned integer
      * @returns pair denoting quotient and remainder.
      */
-    std::pair<uint128_t, uint128_t> divide(const uint128_t &p) {
-        if (*this < p) {  // if this is less than divisor
+    std::pair<uint128_t, uint128_t> divide(const uint128_t &p) const {
+        if (p == uint128_t(0)) {
+            throw std::domain_error("Division by zero");
+        }
+        if (*this < p) {
             return {uint128_t(0), *this};
-        } else if (*this == p) {  // if this is equal to divisor
+        } else if (*this == p) {
             return {uint128_t(1), uint128_t(0)};
         }
         uint128_t tmp = p, tmp2 = *this;
-        uint16_t left = tmp._lez() - _lez();
+        uint16_t left = tmp.lez() - lez();
         tmp <<= left;
         uint128_t quotient(0);
-        uint128_t zero(0);
         while (tmp2 >= p) {
-            uint16_t shf = tmp2._lez() - tmp._lez();
-            if (shf) {
+            uint16_t shf = tmp2.lez() - tmp.lez();
+            if (shf != 0) {
                 tmp >>= shf;
                 quotient <<= shf;
                 left -= shf;
@@ -486,7 +505,9 @@ class uint128_t {
      * @param p 128-bit unsigned integer
      * @returns unsigned 128-bit quotient.
      */
-    inline uint128_t operator/(const uint128_t &p) { return divide(p).first; }
+    inline uint128_t operator/(const uint128_t &p) const {
+        return divide(p).first;
+    }
 
     /**
      * @brief operator / for uint128_t and other integer types.
@@ -496,10 +517,8 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t operator/(const T p) {
-        uint128_t tmp = *this;
-        tmp /= uint128_t(0, p);
-        return tmp;
+    inline uint128_t operator/(const T p) const {
+        return *this / uint128_t(p);
     }
 
     /**
@@ -521,7 +540,7 @@ class uint128_t {
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
     inline uint128_t &operator/=(const T p) {
-        *this /= uint128_t(0, p);
+        *this /= uint128_t(p);
         return *this;
     }
 
@@ -530,7 +549,9 @@ class uint128_t {
      * @param p 128-bit unsigned integer
      * @returns unsigned 128-bit remainder.
      */
-    inline uint128_t operator%(const uint128_t &p) { return divide(p).second; }
+    inline uint128_t operator%(const uint128_t &p) const {
+        return divide(p).second;
+    }
 
     /**
      * @brief operator % for uint128_t and other integer types.
@@ -540,7 +561,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t operator%(const T &p) {
+    inline uint128_t operator%(const T &p) const {
         return *this % uint128_t(p);
     }
 
@@ -572,7 +593,7 @@ class uint128_t {
      * @param other number to be compared with this
      * @returns true if this is less than other, else false
      */
-    inline bool operator<(const uint128_t &other) {
+    inline bool operator<(const uint128_t &other) const noexcept {
         return f < other.f || (f == other.f && s < other.s);
     }
 
@@ -581,7 +602,7 @@ class uint128_t {
      * @param other number to be compared with this
      * @returns true if this is less than or equal to other, else false
      */
-    inline bool operator<=(const uint128_t &other) {
+    inline bool operator<=(const uint128_t &other) const noexcept {
         return f < other.f || (f == other.f && s <= other.s);
     }
 
@@ -590,7 +611,7 @@ class uint128_t {
      * @param other number to be compared with this
      * @returns true if this is greater than other, else false
      */
-    inline bool operator>(const uint128_t &other) {
+    inline bool operator>(const uint128_t &other) const noexcept {
         return f > other.f || (f == other.f && s > other.s);
     }
 
@@ -599,7 +620,7 @@ class uint128_t {
      * @param other number to be compared with this
      * @returns true if this is greater than or equal than other, else false
      */
-    inline bool operator>=(const uint128_t &other) {
+    inline bool operator>=(const uint128_t &other) const noexcept {
         return (f > other.f) || (f == other.f && s >= other.s);
     }
 
@@ -608,7 +629,7 @@ class uint128_t {
      * @param other number to be compared with this
      * @returns true if this is equal than other, else false
      */
-    inline bool operator==(const uint128_t &other) {
+    inline bool operator==(const uint128_t &other) const noexcept {
         return f == other.f && s == other.s;
     }
 
@@ -617,7 +638,7 @@ class uint128_t {
      * @param other number to be compared with this
      * @returns true if this is not equal than other, else false
      */
-    inline bool operator!=(const uint128_t &other) {
+    inline bool operator!=(const uint128_t &other) const noexcept {
         return f != other.f || s != other.s;
     }
 
@@ -625,14 +646,14 @@ class uint128_t {
      * @brief operator ! for uint128_t
      * @returns true if this has zero value, else false
      */
-    inline bool operator!() { return !f && !s; }
+    inline bool operator!() const noexcept { return !f && !s; }
 
     /**
      * @brief operator && for uint128_t
      * @param b number to be compared with this
      * @returns true if both of the values are not zero, else false
      */
-    inline bool operator&&(const uint128_t &b) {
+    inline bool operator&&(const uint128_t &b) const noexcept {
         return (s || f) && (b.s || b.f);
     }
 
@@ -641,7 +662,7 @@ class uint128_t {
      * @param b number to be compared with this
      * @returns true if one of the values are not zero, else false
      */
-    inline bool operator||(const uint128_t &b) {
+    inline bool operator||(const uint128_t &b) const noexcept {
         return (s || f) || (b.s || b.f);
     }
 
@@ -649,7 +670,7 @@ class uint128_t {
      * @brief operator () for uint128_t
      * @returns true if this value is non-zero, else false
      */
-    inline bool operator()() { return s || f; }
+    inline bool operator()() const noexcept { return s || f; }
 
     /**
      * @brief operator < for other types
@@ -659,7 +680,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline bool operator<(const T other) {
+    inline bool operator<(const T other) const noexcept {
         return *this < uint128_t(other);
     }
 
@@ -671,7 +692,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline bool operator<=(const T other) {
+    inline bool operator<=(const T other) const noexcept {
         return *this <= uint128_t(other);
     }
 
@@ -683,7 +704,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline bool operator>(const T other) {
+    inline bool operator>(const T other) const noexcept {
         return *this > uint128_t(other);
     }
 
@@ -695,7 +716,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline bool operator>=(const T other) {
+    inline bool operator>=(const T other) const noexcept {
         return *this >= uint128_t(other);
     }
 
@@ -707,7 +728,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline bool operator==(const T other) {
+    inline bool operator==(const T other) const noexcept {
         return *this == uint128_t(other);
     }
 
@@ -719,7 +740,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline bool operator!=(const T other) {
+    inline bool operator!=(const T other) const noexcept {
         return *this != uint128_t(other);
     }
 
@@ -731,7 +752,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline bool operator&&(const T b) {
+    inline bool operator&&(const T b) const noexcept {
         return (f || s) && b;
     }
 
@@ -744,7 +765,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline bool operator||(const T b) {
+    inline bool operator||(const T b) const noexcept {
         return (f || s) || b;
     }
 
@@ -752,7 +773,9 @@ class uint128_t {
      * @brief operator ~ for uint128_t
      * @returns 1's complement of this number
      */
-    uint128_t operator~() { return uint128_t(~this->f, ~this->s); }
+    uint128_t operator~() const noexcept {
+        return uint128_t(~this->f, ~this->s);
+    }
 
     /**
      * @brief operator << for uint128_t
@@ -762,14 +785,13 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    uint128_t operator<<(const T p) {
-        if (!p) {
-            return uint128_t(f, s);
+    uint128_t operator<<(const T p) const noexcept {
+        if (p == 0) {
+            return *this;
         } else if (p >= 64 && p <= 128) {
             return uint128_t((this->s << (p - 64)), 0);
         } else if (p < 64 && p > 0) {
-            return uint128_t((this->f << p) + ((this->s >> (64 - p))),
-                             this->s << p);
+            return uint128_t((this->f << p) | (this->s >> (64 - p)), this->s << p);
         }
         return uint128_t(0);
     }
@@ -782,15 +804,17 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    uint128_t &operator<<=(const T p) {
-        if (p) {
-            if (p >= 64 && p <= 128) {
-                this->f = (this->s << (p - 64));
-                this->s = 0;
-            } else {
-                f = ((this->f << p) + (this->s >> (64 - p)));
-                s = (this->s << p);
-            }
+    uint128_t &operator<<=(const T p) noexcept {
+        if (p == 0) return *this;
+        if (p >= 64 && p <= 128) {
+            this->f = (this->s << (p - 64));
+            this->s = 0;
+        } else if (p < 64) {
+            f = (this->f << p) | (this->s >> (64 - p));
+            s = (this->s << p);
+        } else {
+            f = 0;
+            s = 0;
         }
         return *this;
     }
@@ -803,14 +827,13 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    uint128_t operator>>(const T p) {
-        if (!p) {
-            return uint128_t(this->f, this->s);
+    uint128_t operator>>(const T p) const noexcept {
+        if (p == 0) {
+            return *this;
         } else if (p >= 64 && p <= 128) {
             return uint128_t(0, (this->f >> (p - 64)));
         } else if (p < 64 && p > 0) {
-            return uint128_t((this->f >> p),
-                             (this->s >> p) + (this->f << (64 - p)));
+            return uint128_t((this->f >> p), (this->s >> p) | (this->f << (64 - p)));
         }
         return uint128_t(0);
     }
@@ -823,15 +846,14 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    uint128_t &operator>>=(const T p) {
-        if (p) {
-            if (p >= 64) {
-                f = 0;
-                s = (this->f >> (p - 64));
-            } else {
-                s = (this->s >> p) + (this->f << (64 - p));
-                f = (this->f >> p);
-            }
+    uint128_t &operator>>=(const T p) noexcept {
+        if (p == 0) return *this;
+        if (p >= 64) {
+            f = 0;
+            s = (this->f >> (p - 64));
+        } else {
+            s = (this->s >> p) | (this->f << (64 - p));
+            f = (this->f >> p);
         }
         return *this;
     }
@@ -841,7 +863,7 @@ class uint128_t {
      * @param p number to be operated
      * @returns value of this & p (& is bit-wise operator)
      */
-    inline uint128_t operator&(const uint128_t &p) {
+    inline uint128_t operator&(const uint128_t &p) const noexcept {
         return uint128_t(this->f & p.f, this->s & p.s);
     }
 
@@ -853,9 +875,8 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    uint128_t operator&(const T p) {
-        uint128_t tmp = *this;
-        return tmp & uint128_t(p);
+    uint128_t operator&(const T p) const noexcept {
+        return *this & uint128_t(p);
     }
 
     /**
@@ -863,7 +884,7 @@ class uint128_t {
      * @param p number to be operated
      * @returns this = this & p (& is bit-wise operator)
      */
-    uint128_t &operator&=(const uint128_t &p) {
+    uint128_t &operator&=(const uint128_t &p) noexcept {
         this->f &= p.f;
         this->s &= p.s;
         return *this;
@@ -877,7 +898,7 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    uint128_t &operator&=(const T p) {
+    uint128_t &operator&=(const T p) noexcept {
         *this &= uint128_t(p);
         return *this;
     }
@@ -890,8 +911,8 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t operator|(const T p) {
-        return uint128_t(p | s);
+    inline uint128_t operator|(const T p) const noexcept {
+        return uint128_t(this->f, this->s | static_cast<uint64_t>(p));
     }
 
     /**
@@ -899,7 +920,7 @@ class uint128_t {
      * @param p number to be operated
      * @returns value of this | p (| is bit-wise OR operator)
      */
-    inline uint128_t operator|(const uint128_t &p) {
+    inline uint128_t operator|(const uint128_t &p) const noexcept {
         return uint128_t(this->f | p.f, this->s | p.s);
     }
 
@@ -908,7 +929,7 @@ class uint128_t {
      * @param p number to be operated
      * @returns this = this | p (| is bit-wise OR operator)
      */
-    uint128_t &operator|=(const uint128_t &p) {
+    uint128_t &operator|=(const uint128_t &p) noexcept {
         f |= p.f;
         s |= p.s;
         return *this;
@@ -922,8 +943,8 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t &operator|=(const T p) {
-        s |= p.s;
+    inline uint128_t &operator|=(const T p) noexcept {
+        s |= static_cast<uint64_t>(p);
         return *this;
     }
 
@@ -935,8 +956,8 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t operator^(const T p) {
-        return uint128_t(this->f, this->s ^ p);
+    inline uint128_t operator^(const T p) const noexcept {
+        return uint128_t(this->f, this->s ^ static_cast<uint64_t>(p));
     }
 
     /**
@@ -944,7 +965,7 @@ class uint128_t {
      * @param p number to be operated
      * @returns value of this ^ p (^ is bit-wise XOR operator)
      */
-    inline uint128_t operator^(const uint128_t &p) {
+    inline uint128_t operator^(const uint128_t &p) const noexcept {
         return uint128_t(this->f ^ p.f, this->s ^ p.s);
     }
 
@@ -953,7 +974,7 @@ class uint128_t {
      * @param p number to be operated
      * @returns this = this ^ p (^ is bit-wise XOR operator)
      */
-    uint128_t &operator^=(const uint128_t &p) {
+    uint128_t &operator^=(const uint128_t &p) noexcept {
         f ^= p.f;
         s ^= p.s;
         return *this;
@@ -967,8 +988,8 @@ class uint128_t {
      */
     template <typename T, typename = typename std::enable_if<
                               std::is_integral<T>::value, T>::type>
-    inline uint128_t &operator^=(const T &p) {
-        s ^= p;
+    inline uint128_t &operator^=(const T &p) noexcept {
+        s ^= static_cast<uint64_t>(p);
         return *this;
     }
 
@@ -985,18 +1006,19 @@ class uint128_t {
         if (!p.f) {
             op << p.s;
         } else {
-            std::string out = "0", p_2 = "1";
+            std::string out = "0";
+            std::string p2 = "1";
             for (int i = 0; i < 64; ++i) {
-                if (p.s & (1LL << i)) {
-                    out = add(out, p_2);
+                if (p.s & (uint64_t(1) << i)) {
+                    out = add(out, p2);
                 }
-                p_2 = add(p_2, p_2);
+                p2 = add(p2, p2);
             }
             for (int i = 0; i < 64; ++i) {
-                if (p.f & (1LL << i)) {
-                    out = add(out, p_2);
+                if (p.f & (uint64_t(1) << i)) {
+                    out = add(out, p2);
                 }
-                p_2 = add(p_2, p_2);
+                p2 = add(p2, p2);
             }
             op << out;
         }
@@ -1007,19 +1029,19 @@ class uint128_t {
 // Arithmetic operators
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline uint128_t operator+(const T &p, const uint128_t &q) {
+inline uint128_t operator+(const T &p, const uint128_t &q) noexcept {
     return uint128_t(p) + q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline uint128_t operator-(const T p, const uint128_t &q) {
+inline uint128_t operator-(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) - q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline uint128_t operator*(const T p, const uint128_t &q) {
+inline uint128_t operator*(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) * q;
 }
 
@@ -1038,69 +1060,69 @@ inline uint128_t operator%(const T p, const uint128_t &q) {
 // Bitwise operators
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline uint128_t operator&(const T &p, const uint128_t &q) {
+inline uint128_t operator&(const T &p, const uint128_t &q) noexcept {
     return uint128_t(p) & q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline uint128_t operator|(const T p, const uint128_t &q) {
+inline uint128_t operator|(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) | q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline uint128_t operator^(const T p, const uint128_t &q) {
+inline uint128_t operator^(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) ^ q;
 }
 
 // Boolean operators
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline bool operator&&(const T p, const uint128_t &q) {
+inline bool operator&&(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) && q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline bool operator||(const T p, const uint128_t &q) {
+inline bool operator||(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) || q;
 }
 
 // Comparison operators
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline bool operator==(const T p, const uint128_t &q) {
+inline bool operator==(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) == q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline bool operator!=(const T p, const uint128_t &q) {
+inline bool operator!=(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) != q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline bool operator<(const T p, const uint128_t &q) {
+inline bool operator<(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) < q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline bool operator<=(const T p, const uint128_t &q) {
+inline bool operator<=(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) <= q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline bool operator>(const T p, const uint128_t &q) {
+inline bool operator>(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) > q;
 }
 
 template <typename T, typename = typename std::enable_if<
                           std::is_integral<T>::value, T>::type>
-inline bool operator>=(const T p, const uint128_t &q) {
+inline bool operator>=(const T p, const uint128_t &q) noexcept {
     return uint128_t(p) >= q;
 }
 
