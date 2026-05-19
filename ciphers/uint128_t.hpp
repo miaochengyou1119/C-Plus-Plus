@@ -4,7 +4,7 @@
  * @details Implementation of 128-bit unsigned integers.
  * @note The implementation can be flagged as not completed. This header is used
  * with enough operations as a part of bigger integer types 256-bit integer.
- * @author [Ashish Daulatabad](https://github.com/AshishYUO)
+ * @author [miaochengyou1119](https://github.com/miaochengyou1119)
  */
 
 #include <algorithm>
