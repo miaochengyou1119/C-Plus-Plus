@@ -5,7 +5,7 @@
  * @note The implementation can be flagged as not completed. This header is used
  * with enough operations to demonstrate the usage of ECDH (Elliptic Curve
  * Diffie-Hellman) Key exchange.
- * @author [Ashish Daulatabad](https://github.com/AshishYUO)
+ * @author [miaochengyou1119](https://github.com/miaochengyou1119)
  */
 #include <string>
 #include <utility>
