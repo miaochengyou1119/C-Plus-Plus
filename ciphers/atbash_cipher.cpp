@@ -1,84 +1,58 @@
 /**
- * @file
- * @brief [Atbash Cipher](https://en.wikipedia.org/wiki/Atbash) implementation
- * @details The Atbash cipher is a subsitution cipher where the letters of the
- * alphabet are in reverse. For example, A is replaced with Z, B is replaced
- * with Y, etc.
- *
- * ### Algorithm
- * The algorithm takes a string, and looks up the corresponding reversed letter
- * for each letter in the word and replaces it. Spaces are ignored and case is
- * preserved.
- *
- * @author [Focusucof](https://github.com/Focusucof)
+ * @file atbash_cipher.cpp
+ * @brief 阿特巴什密码（反转字母表）
  */
-#include <cassert>   /// for assert
-#include <iostream>  /// for IO operations
-#include <map>       /// for std::map
-#include <string>    /// for std::string
 
-/** \namespace ciphers
- * \brief Algorithms for encryption and decryption
- */
+#include <iostream>
+#include <string>
+#include <cassert>
+#include <cctype>
+
 namespace ciphers {
-/** \namespace atbash
- * \brief Functions for the [Atbash
- * Cipher](https://en.wikipedia.org/wiki/Atbash) implementation
- */
 namespace atbash {
-std::map<char, char> atbash_cipher_map = {
-    {'a', 'z'}, {'b', 'y'}, {'c', 'x'}, {'d', 'w'}, {'e', 'v'}, {'f', 'u'},
-    {'g', 't'}, {'h', 's'}, {'i', 'r'}, {'j', 'q'}, {'k', 'p'}, {'l', 'o'},
-    {'m', 'n'}, {'n', 'm'}, {'o', 'l'}, {'p', 'k'}, {'q', 'j'}, {'r', 'i'},
-    {'s', 'h'}, {'t', 'g'}, {'u', 'f'}, {'v', 'e'}, {'w', 'd'}, {'x', 'c'},
-    {'y', 'b'}, {'z', 'a'}, {'A', 'Z'}, {'B', 'Y'}, {'C', 'X'}, {'D', 'W'},
-    {'E', 'V'}, {'F', 'U'}, {'G', 'T'}, {'H', 'S'}, {'I', 'R'}, {'J', 'Q'},
-    {'K', 'P'}, {'L', 'O'}, {'M', 'N'}, {'N', 'M'}, {'O', 'L'}, {'P', 'K'},
-    {'Q', 'J'}, {'R', 'I'}, {'S', 'H'}, {'T', 'G'}, {'U', 'F'}, {'V', 'E'},
-    {'W', 'D'}, {'X', 'C'}, {'Y', 'B'}, {'Z', 'A'}, {' ', ' '}
 
-};
-
-/**
- * @brief atbash cipher encryption and decryption
- * @param text Plaintext to be encrypted
- * @returns encoded or decoded string
- */
-std::string atbash_cipher(const std::string& text) {
+// 加密 = 解密（对称）
+std::string atbash(const std::string& text) {
     std::string result;
-    for (char letter : text) {
-        result += atbash_cipher_map[letter];
+    for (unsigned char c : text) {
+        if (std::isalpha(c)) {
+            if (std::isupper(c)) {
+                // 大写：A ↔ Z，B ↔ Y ...
+                result += 'Z' - (c - 'A');
+            } else {
+                // 小写：a ↔ z，b ↔ y ...
+                result += 'z' - (c - 'a');
+            }
+        } else {
+            // 非字母直接保留
+            result += c;
+        }
     }
     return result;
 }
 
-}  // namespace atbash
-}  // namespace ciphers
+} // namespace atbash
+} // namespace ciphers
 
-/**
- * @brief Self-test implementations
- * @returns void
- */
-static void test() {
-    // 1st test
+// 测试
+void test() {
     std::string text = "Hello World";
-    std::string expected = "Svool Dliow";
-    std::string encrypted_text = ciphers::atbash::atbash_cipher(text);
-    std::string decrypted_text = ciphers::atbash::atbash_cipher(encrypted_text);
-    assert(expected == encrypted_text);
-    assert(text == decrypted_text);
-    std::cout << "Original text: " << text << std::endl;
-    std::cout << ", Expected text: " << expected << std::endl;
-    std::cout << ", Encrypted text: " << encrypted_text << std::endl;
-    std::cout << ", Decrypted text: " << decrypted_text << std::endl;
-    std::cout << "\nAll tests have successfully passed!\n";
+    std::string expect = "Svool Dliow";
+
+    std::string enc = ciphers::atbash::atbash(text);
+    std::string dec = ciphers::atbash::atbash(enc);
+
+    std::cout << "原始文本: " << text << '\n';
+    std::cout << "加密结果: " << enc << '\n';
+    std::cout << "解密结果: " << dec << '\n';
+
+    assert(enc == expect);
+    assert(dec == text);
+
+    std::cout << "\n✅ Atbash 密码测试通过！\n";
 }
 
-/**
- * @brief Main function
- * @returns 0 on exit
- */
 int main() {
-    test();  // run self-test implementations
+    test();
     return 0;
 }
