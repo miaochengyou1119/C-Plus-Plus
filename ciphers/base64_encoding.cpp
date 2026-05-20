@@ -1,5 +1,5 @@
 /**
- * @file base64.cpp
+ * @file base64_encoding.cpp
  * @brief Base64 编码与解码（标准 RFC4648）
  */
 
